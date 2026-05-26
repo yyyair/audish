@@ -1,0 +1,295 @@
+{
+  "name": "audish",
+  "displayName": "Audish",
+  "description": "Code auditing assistant for researchers and security auditors",
+  "version": "0.1.0",
+  "publisher": "audish",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "audit",
+    "security",
+    "research",
+    "coverage",
+    "bookmarks",
+    "comments"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "audish",
+          "title": "Audish",
+          "icon": "media/audish.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "audish-panel",
+          "title": "Audish",
+          "icon": "media/audish.svg"
+        }
+      ]
+    },
+    "views": {
+      "audish": [
+        {
+          "id": "audish.campaigns",
+          "name": "Campaigns"
+        },
+        {
+          "id": "audish.bookmarks",
+          "name": "Bookmarks"
+        },
+        {
+          "id": "audish.comments",
+          "name": "Comments"
+        }
+      ],
+      "audish-panel": [
+        {
+          "id": "audish.commentEditor",
+          "name": "Comment Editor",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "audish.createCampaign",
+        "title": "Create Campaign",
+        "category": "Audish",
+        "icon": "$(add)"
+      },
+      {
+        "command": "audish.renameCampaign",
+        "title": "Rename Campaign",
+        "category": "Audish",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "audish.deleteCampaign",
+        "title": "Delete Campaign",
+        "category": "Audish",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "audish.selectCampaign",
+        "title": "Set as Active",
+        "category": "Audish",
+        "icon": "$(check)"
+      },
+      {
+        "command": "audish.addBookmark",
+        "title": "Add Bookmark",
+        "category": "Audish",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "audish.deleteBookmark",
+        "title": "Delete Bookmark",
+        "category": "Audish",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "audish.goToBookmark",
+        "title": "Go to Bookmark",
+        "category": "Audish"
+      },
+      {
+        "command": "audish.markLineSeen",
+        "title": "Mark Line(s) as Seen",
+        "category": "Audish",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "audish.unmarkLineSeen",
+        "title": "Unmark Line(s) as Seen",
+        "category": "Audish",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "audish.addComment",
+        "title": "Add Comment",
+        "category": "Audish",
+        "icon": "$(comment)"
+      },
+      {
+        "command": "audish.editComment",
+        "title": "Edit Comment",
+        "category": "Audish",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "audish.deleteComment",
+        "title": "Delete Comment",
+        "category": "Audish",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "audish.goToComment",
+        "title": "Go to Comment",
+        "category": "Audish"
+      },
+      {
+        "command": "audish.goToLocation",
+        "title": "Go to Location",
+        "category": "Audish"
+      },
+      {
+        "command": "audish.exportCampaign",
+        "title": "Export Campaign Data",
+        "category": "Audish",
+        "icon": "$(export)"
+      },
+      {
+        "command": "audish.importCampaign",
+        "title": "Import Campaign Data",
+        "category": "Audish",
+        "icon": "$(import)"
+      },
+      {
+        "command": "audish.toggleDecorations",
+        "title": "Toggle All Markup (Coverage, Bookmarks, Comments)",
+        "category": "Audish"
+      },
+      {
+        "command": "audish.toggleCommentMode",
+        "title": "Toggle Comment Display: CodeLens ↔ Inline",
+        "category": "Audish"
+      },
+      {
+        "command": "audish.showCoverageStats",
+        "title": "Show Coverage Statistics",
+        "category": "Audish"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "audish.addBookmark",
+          "group": "audish@1",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "audish.markLineSeen",
+          "group": "audish@2",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "audish.unmarkLineSeen",
+          "group": "audish@3",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "audish.addComment",
+          "group": "audish@4",
+          "when": "editorTextFocus"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "audish.createCampaign",
+          "when": "view == audish.campaigns",
+          "group": "navigation"
+        },
+        {
+          "command": "audish.exportCampaign",
+          "when": "view == audish.campaigns",
+          "group": "navigation"
+        },
+        {
+          "command": "audish.importCampaign",
+          "when": "view == audish.campaigns",
+          "group": "navigation"
+        },
+        {
+          "command": "audish.addBookmark",
+          "when": "view == audish.bookmarks",
+          "group": "navigation"
+        },
+        {
+          "command": "audish.addComment",
+          "when": "view == audish.comments",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "audish.selectCampaign",
+          "when": "view == audish.campaigns && viewItem == campaign-inactive",
+          "group": "inline@1"
+        },
+        {
+          "command": "audish.renameCampaign",
+          "when": "view == audish.campaigns && (viewItem == campaign-active || viewItem == campaign-inactive)",
+          "group": "campaign@1"
+        },
+        {
+          "command": "audish.deleteCampaign",
+          "when": "view == audish.campaigns && (viewItem == campaign-active || viewItem == campaign-inactive)",
+          "group": "campaign@2"
+        },
+        {
+          "command": "audish.deleteBookmark",
+          "when": "view == audish.bookmarks && viewItem == bookmark",
+          "group": "inline@1"
+        },
+        {
+          "command": "audish.editComment",
+          "when": "view == audish.comments && viewItem == comment",
+          "group": "inline@1"
+        },
+        {
+          "command": "audish.deleteComment",
+          "when": "view == audish.comments && viewItem == comment",
+          "group": "inline@2"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "audish.addBookmark",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "audish.markLineSeen",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "audish.addComment",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.1",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
+    "typescript": "^5.3.0"
+  }
+}
