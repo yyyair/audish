@@ -129,12 +129,14 @@ export class CommentEditorView implements vscode.WebviewViewProvider {
         }
 
         this._saving = false;
+        void vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
         return;
       }
 
       // ── cancel ───────────────────────────────────────────────────────────
       if (msg.type === 'cancel') {
         this._renderCurrentState();
+        void vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
       }
     });
   }
@@ -473,6 +475,7 @@ ${isEmpty ? /* html */`<div class="idle">Move cursor to any line to view or add 
 
       // ── init ─────────────────────────────────────────────────────────────
       render();
+      ${autofocus ? 'requestAnimationFrame(function(){ta.focus();});' : ''}
     })();
   </script>
 `}
