@@ -5,179 +5,182 @@ import { CampaignManager } from './campaignManager';
 import { parseRefs, resolveRefs } from './linkResolver';
 import { logError } from './logger';
 
-export class CommentEditorView implements vscode.WebviewViewProvider {
-  static readonly viewId = 'audish.commentEditor';
-
-  private _view?: vscode.WebviewView;
-  private readonly _ready: Promise<void>;
-  private _resolveReady!: () => void;
-
+export class CommentEditorView implements vscode.Disposable {
+  private _panel?: vscode.WebviewPanel;
+  private _panelDisposables: vscode.Disposable[] = [];
   private _currentFile = '';
   private _currentLine = -1;
   private _currentCommentId: string | undefined;
   private _saving = false;
-  private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly storage: StorageManager,
     private readonly manager: CampaignManager
-  ) {
-    this._ready = new Promise(r => { this._resolveReady = r; });
-  }
+  ) {}
 
-  resolveWebviewView(
-    view: vscode.WebviewView,
-    _ctx: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
-  ): void {
-    this._view = view;
-    this._resolveReady();
-
-    view.webview.options = { enableScripts: true };
-    this._renderCurrentState();
-
-    // React when a comment is deleted or edited externally (CodeLens, sidebar).
-    this.manager.onDidChange(() => {
-      if (!this._currentCommentId) return;
-      const stillExists = this.manager.getComments().some(c => c.id === this._currentCommentId);
-      if (!stillExists) {
-        this._currentCommentId = undefined;
-        this._renderCurrentState();
-      }
-    });
-
-    view.webview.onDidReceiveMessage(async (msg: {
-      type: string; text?: string; query?: string; forSymbol?: boolean;
-    }) => {
-      // ── completions ──────────────────────────────────────────────────────
-      if (msg.type === 'requestCompletions') {
-        const query = msg.query ?? '';
-        try {
-          if (msg.forSymbol) {
-            const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-              'vscode.executeWorkspaceSymbolProvider', query
-            ) ?? [];
-            view.webview.postMessage({
-              type: 'completions',
-              items: symbols.slice(0, 10).map(s => ({
-                insert: '#' + s.name,
-                label: s.name,
-                detail: vscode.workspace.asRelativePath(s.location.uri)
-              }))
-            });
-          } else {
-            const glob = query.includes('/') || query.includes('.')
-              ? `**/${query}*`
-              : `**/*${query}*`;
-            const uris = await vscode.workspace.findFiles(glob, '{**/node_modules/**,**/.git/**}', 10);
-            view.webview.postMessage({
-              type: 'completions',
-              items: uris.map(u => {
-                const rel = this.storage.toRelativePath(u.fsPath);
-                return { insert: rel, label: rel, detail: '' };
-              })
-            });
-          }
-        } catch { /* no provider */ }
-        return;
-      }
-
-      // ── save ─────────────────────────────────────────────────────────────
-      if (msg.type === 'save') {
-        if (this._saving) return;
-        this._saving = true;
-        const text = (msg.text ?? '').trim();
-
-        if (!text) {
-          this._saving = false;
-          this._renderCurrentState(); // reset
-          return;
-        }
-
-        if (!this.manager.getActiveCampaignId()) {
-          this._saving = false;
-          vscode.window.showWarningMessage(
-            'No active Audish campaign. Create or select one first.',
-            'Create Campaign'
-          ).then(c => c && vscode.commands.executeCommand('audish.createCampaign'));
-          return;
-        }
-
-        let links: CodeLink[] = [];
-        try {
-          links = await resolveRefs(parseRefs(text), this.storage);
-        } catch (err) {
-          logError('CommentEditorView.save', err);
-          vscode.window.showWarningMessage(
-            'Audish: link resolution failed — comment saved without links. See Output > Audish.'
-          );
-        }
-
-        try {
-          if (this._currentCommentId) {
-            this.manager.editComment(this._currentCommentId, text, links);
-          } else if (this._currentFile) {
-            this.manager.addComment(this._currentFile, this._currentLine, text, links);
-            // Capture the newly created comment's id for subsequent saves
-            const created = this.manager
-              .getCommentsForFile(this._currentFile)
-              .find(c => c.line === this._currentLine);
-            this._currentCommentId = created?.id;
-          }
-        } catch (err) {
-          logError('CommentEditorView.manager', err);
-        }
-
-        this._saving = false;
-        void vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
-        return;
-      }
-
-      // ── cancel ───────────────────────────────────────────────────────────
-      if (msg.type === 'cancel') {
-        this._renderCurrentState();
-        void vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
-      }
-    });
-  }
-
-  // Called on every cursor/editor change — debounced so rapid movement is cheap.
-  update(file: string, line: number): void {
-    clearTimeout(this._debounceTimer);
-    this._debounceTimer = setTimeout(() => this._applyUpdate(file, line), 150);
-  }
-
-  // Bypasses debounce and position-equality check — used for explicit navigation.
-  forceUpdate(file: string, line: number): void {
-    clearTimeout(this._debounceTimer);
-    this._currentFile = file;
-    this._currentLine = line;
-    this._renderCurrentState();
-  }
-
-  private _applyUpdate(file: string, line: number): void {
-    if (file === this._currentFile && line === this._currentLine) return;
-    this._currentFile = file;
-    this._currentLine = line;
-    this._renderCurrentState();
-  }
-
-  // Reveals the panel and focuses the textarea so the user can type immediately.
+  // Opens the panel focused on the current active editor position.
   async focus(): Promise<void> {
-    await vscode.commands.executeCommand(`${CommentEditorView.viewId}.focus`);
-    await this._ready;
-    // Re-render with autofocus so the textarea is focused as part of the HTML
-    // load itself, avoiding a postMessage race against webview initialization.
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.uri.scheme !== 'file') return;
+    const file = this.storage.toRelativePath(editor.document.uri.fsPath);
+    const line = editor.selection.active.line;
+    this._open(file, line);
+  }
+
+  // Opens or updates the panel at a specific file/line (used by editComment commands).
+  forceUpdate(file: string, line: number): void {
+    this._currentFile = file;
+    this._currentLine = line;
+    if (this._panel) {
+      this._renderCurrentState();
+    } else if (file) {
+      this._open(file, line);
+    }
+  }
+
+  private _open(file: string, line: number): void {
+    this._currentFile = file;
+    this._currentLine = line;
+
+    if (this._panel) {
+      this._panel.reveal(vscode.ViewColumn.Beside, false);
+      this._renderCurrentState(true);
+      return;
+    }
+
+    this._panel = vscode.window.createWebviewPanel(
+      'audish.commentEditor',
+      'Audish Comment',
+      { viewColumn: vscode.ViewColumn.Beside, preserveFocus: false },
+      { enableScripts: true, retainContextWhenHidden: false }
+    );
+
+    const disposables: vscode.Disposable[] = [
+      this.manager.onDidChange(() => {
+        if (!this._currentCommentId) return;
+        const stillExists = this.manager.getComments().some(c => c.id === this._currentCommentId);
+        if (!stillExists) {
+          this._currentCommentId = undefined;
+          this._renderCurrentState();
+        }
+      }),
+
+      this._panel.webview.onDidReceiveMessage(async (msg: {
+        type: string; text?: string; query?: string; forSymbol?: boolean;
+      }) => {
+        // ── completions ──────────────────────────────────────────────────────
+        if (msg.type === 'requestCompletions') {
+          const query = msg.query ?? '';
+          try {
+            if (msg.forSymbol) {
+              const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+                'vscode.executeWorkspaceSymbolProvider', query
+              ) ?? [];
+              this._panel?.webview.postMessage({
+                type: 'completions',
+                items: symbols.slice(0, 10).map(s => ({
+                  insert: '#' + s.name,
+                  label: s.name,
+                  detail: vscode.workspace.asRelativePath(s.location.uri)
+                }))
+              });
+            } else {
+              const glob = query.includes('/') || query.includes('.')
+                ? `**/${query}*`
+                : `**/*${query}*`;
+              const uris = await vscode.workspace.findFiles(glob, '{**/node_modules/**,**/.git/**}', 10);
+              this._panel?.webview.postMessage({
+                type: 'completions',
+                items: uris.map(u => {
+                  const rel = this.storage.toRelativePath(u.fsPath);
+                  return { insert: rel, label: rel, detail: '' };
+                })
+              });
+            }
+          } catch { /* no provider */ }
+          return;
+        }
+
+        // ── save ─────────────────────────────────────────────────────────────
+        if (msg.type === 'save') {
+          if (this._saving) return;
+          this._saving = true;
+          const text = (msg.text ?? '').trim();
+
+          if (!text) {
+            this._saving = false;
+            this._renderCurrentState(); // reset to saved state
+            return;
+          }
+
+          if (!this.manager.getActiveCampaignId()) {
+            this._saving = false;
+            vscode.window.showWarningMessage(
+              'No active Audish campaign. Create or select one first.',
+              'Create Campaign'
+            ).then(c => c && vscode.commands.executeCommand('audish.createCampaign'));
+            return;
+          }
+
+          let links: CodeLink[] = [];
+          try {
+            links = await resolveRefs(parseRefs(text), this.storage);
+          } catch (err) {
+            logError('CommentEditorView.save', err);
+            vscode.window.showWarningMessage(
+              'Audish: link resolution failed — comment saved without links. See Output > Audish.'
+            );
+          }
+
+          try {
+            if (this._currentCommentId) {
+              this.manager.editComment(this._currentCommentId, text, links);
+            } else if (this._currentFile) {
+              this.manager.addComment(this._currentFile, this._currentLine, text, links);
+            }
+          } catch (err) {
+            logError('CommentEditorView.manager', err);
+          }
+
+          this._saving = false;
+          this._dismiss();
+          return;
+        }
+
+        // ── cancel ───────────────────────────────────────────────────────────
+        if (msg.type === 'cancel') {
+          this._dismiss();
+        }
+      })
+    ];
+
+    this._panel.onDidDispose(() => {
+      disposables.forEach(d => d.dispose());
+      this._panelDisposables = [];
+      this._panel = undefined;
+    });
+
+    this._panelDisposables = disposables;
     this._renderCurrentState(true);
   }
 
+  private _dismiss(): void {
+    this._panel?.dispose();
+    void vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
+  }
+
   private _renderCurrentState(autofocus = false): void {
-    if (!this._view) return;
+    if (!this._panel) return;
     const comment = this._currentFile
       ? this.manager.getCommentsForFile(this._currentFile).find(c => c.line === this._currentLine)
       : undefined;
     this._currentCommentId = comment?.id;
-    this._view.webview.html = buildHtml(this._currentFile, this._currentLine, comment?.text ?? '', autofocus);
+    this._panel.webview.html = buildHtml(this._currentFile, this._currentLine, comment?.text ?? '', autofocus);
+  }
+
+  dispose(): void {
+    this._panelDisposables.forEach(d => d.dispose());
+    this._panel?.dispose();
   }
 }
 
@@ -316,8 +319,8 @@ ${isEmpty ? /* html */`<div class="idle">Move cursor to any line to view or add 
   <div id="completions"></div>
 
   <div class="actions">
-    <span class="shortcut">Ctrl+Enter to save &nbsp;·&nbsp; Esc to reset</span>
-    <button id="btn-cancel">Reset</button>
+    <span class="shortcut">Ctrl+Enter to save &nbsp;·&nbsp; Esc to cancel</span>
+    <button id="btn-cancel">Cancel</button>
     <button id="btn-save">Save</button>
   </div>
 

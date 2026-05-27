@@ -67,34 +67,9 @@ export function activate(context: vscode.ExtensionContext): void {
   updateViewMessages();
   context.subscriptions.push(campaignsView, bookmarksView, commentsView);
 
-  // Bottom-panel comment editor (WebviewViewProvider)
+  // On-demand comment editor (opens as a temporary panel beside the active editor)
   const commentEditorView = new CommentEditorView(storage, manager);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      CommentEditorView.viewId,
-      commentEditorView,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
-
-  // Keep the comment pane in sync with the active cursor position.
-  function syncCommentPane(editor: vscode.TextEditor | undefined): void {
-    if (!editor || editor.document.uri.scheme !== 'file') {
-      commentEditorView.update('', -1);
-    } else {
-      commentEditorView.update(
-        storage.toRelativePath(editor.document.uri.fsPath),
-        editor.selection.active.line
-      );
-    }
-  }
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(syncCommentPane),
-    vscode.window.onDidChangeTextEditorSelection(e => {
-      if (e.textEditor === vscode.window.activeTextEditor) syncCommentPane(e.textEditor);
-    })
-  );
-  syncCommentPane(vscode.window.activeTextEditor);
+  context.subscriptions.push(commentEditorView);
 
   // Decorations
   const decorationManager = new DecorationManager(manager, storage);

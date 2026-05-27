@@ -174,7 +174,6 @@ export function registerCommands(
       if (!item?.comment) return;
       await navigateTo(storage, item.comment.file, item.comment.line);
       commentEditor.forceUpdate(item.comment.file, item.comment.line);
-      await commentEditor.focus();
     }),
 
     vscode.commands.registerCommand('audish.editCommentById', async (commentId: string) => {
@@ -182,7 +181,6 @@ export function registerCommands(
       if (!comment) return;
       await navigateTo(storage, comment.file, comment.line);
       commentEditor.forceUpdate(comment.file, comment.line);
-      await commentEditor.focus();
     }),
 
     vscode.commands.registerCommand('audish.deleteComment', async (item?: CommentItem) => {
