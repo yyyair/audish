@@ -30,13 +30,6 @@
           "title": "Audish",
           "icon": "media/audish.svg"
         }
-      ],
-      "panel": [
-        {
-          "id": "audish-panel",
-          "title": "Audish",
-          "icon": "media/audish.svg"
-        }
       ]
     },
     "views": {
@@ -52,13 +45,6 @@
         {
           "id": "audish.comments",
           "name": "Comments"
-        }
-      ],
-      "audish-panel": [
-        {
-          "id": "audish.commentEditor",
-          "name": "Comment Editor",
-          "type": "webview"
         }
       ]
     },

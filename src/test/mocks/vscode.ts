@@ -15,6 +15,8 @@ export const window = {
   showInformationMessage: jest.fn().mockResolvedValue(undefined),
   showErrorMessage: jest.fn().mockResolvedValue(undefined),
   createOutputChannel: jest.fn(() => ({ appendLine: jest.fn(), show: jest.fn(), dispose: jest.fn() })),
+  activeTextEditor: undefined as any,
+  createWebviewPanel: jest.fn(),
 };
 
 export const commands = {
@@ -29,4 +31,12 @@ export const workspace = {
 
 export class Uri {
   static file(path: string) { return { fsPath: path, scheme: 'file' }; }
+}
+
+export enum ViewColumn {
+  Active = -1,
+  Beside = -2,
+  One = 1,
+  Two = 2,
+  Three = 3,
 }

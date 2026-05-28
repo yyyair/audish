@@ -125,9 +125,8 @@ export class DecorationManager implements vscode.Disposable {
 
       const dt = vscode.window.createTextEditorDecorationType({
         after: {
-          contentText: `\t${preview}`,
-          color: new vscode.ThemeColor('editorCodeLens.foreground'),
-          // fontStyle: 'italic',
+          contentText: `\t✎ ${preview}`,
+          color: new vscode.ThemeColor('editorInlayHint.foreground'),
           margin: '0 0 0 4px'
         },
         rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
