@@ -91,6 +91,7 @@ export class DecorationManager implements vscode.Disposable {
     // Coverage
     const coverage = this.manager.getCoverage();
     const coveredLines = coverage[rel] ?? [];
+    const coveredSet = new Set(coveredLines);
     editor.setDecorations(
       this.coverageType,
       coveredLines
@@ -98,12 +99,12 @@ export class DecorationManager implements vscode.Disposable {
         .map(l => new vscode.Range(l, 0, l, 0))
     );
 
-    // Bookmarks
+    // Bookmarks — skip covered lines so the coverage (seen) decoration takes visual priority
     const bookmarks = this.manager.getBookmarks().filter(b => b.file === rel);
     editor.setDecorations(
       this.bookmarkType,
       bookmarks
-        .filter(b => b.line < editor.document.lineCount)
+        .filter(b => b.line < editor.document.lineCount && !coveredSet.has(b.line))
         .map(b => new vscode.Range(b.line, 0, b.line, 0))
     );
 
