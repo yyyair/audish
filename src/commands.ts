@@ -141,9 +141,25 @@ export function registerCommands(
       if (item?.bookmark) manager.deleteBookmark(item.bookmark.id);
     }),
 
-    vscode.commands.registerCommand('audish.goToBookmark', (bookmark: Bookmark) =>
-      navigateTo(storage, bookmark.file, bookmark.line)
-    ),
+    vscode.commands.registerCommand('audish.goToBookmark', async (bookmark?: Bookmark) => {
+      if (bookmark) return navigateTo(storage, bookmark.file, bookmark.line);
+      if (!requireActiveCampaign(manager)) return;
+      const bookmarks = manager.getBookmarks();
+      if (!bookmarks.length) {
+        vscode.window.showInformationMessage('No bookmarks in the active campaign.');
+        return;
+      }
+      const picked = await vscode.window.showQuickPick(
+        bookmarks.map(b => ({
+          label: `${path.basename(b.file)}:${b.line + 1}`,
+          description: b.description || undefined,
+          detail: b.file,
+          bookmark: b
+        })),
+        { placeHolder: 'Select a bookmark to navigate to' }
+      );
+      if (picked) await navigateTo(storage, picked.bookmark.file, picked.bookmark.line);
+    }),
 
     // -------------------------------------------------------------------------
     // Coverage

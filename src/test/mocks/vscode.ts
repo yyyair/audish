@@ -14,6 +14,7 @@ export const window = {
   showWarningMessage: jest.fn().mockResolvedValue(undefined),
   showInformationMessage: jest.fn().mockResolvedValue(undefined),
   showErrorMessage: jest.fn().mockResolvedValue(undefined),
+  showQuickPick: jest.fn().mockResolvedValue(undefined),
   createOutputChannel: jest.fn(() => ({ appendLine: jest.fn(), show: jest.fn(), dispose: jest.fn() })),
   activeTextEditor: undefined as any,
   createWebviewPanel: jest.fn(),

@@ -191,4 +191,57 @@ describe('CampaignManager — bookmarks', () => {
     const { manager } = makeManager();
     expect(manager.getBookmarks()).toHaveLength(0);
   });
+
+  it('throws when adding a bookmark with no active campaign', () => {
+    const { manager } = makeManager();
+    expect(() => manager.addBookmark('file.ts', 0, 'x')).toThrow('No active campaign');
+  });
+
+  it('addBookmark returns the created bookmark with the correct fields', () => {
+    const { manager } = makeManager();
+    manager.createCampaign('Camp', '');
+    const b = manager.addBookmark('src/foo.ts', 10, 'entry point');
+    expect(b.file).toBe('src/foo.ts');
+    expect(b.line).toBe(10);
+    expect(b.description).toBe('entry point');
+    expect(b.id).toBeTruthy();
+    expect(b.createdAt).toBeTruthy();
+  });
+
+  it('bookmarks are scoped to the active campaign', () => {
+    const { manager } = makeManager();
+    const c1 = manager.createCampaign('First', '');
+    manager.addBookmark('file.ts', 1, 'in first');
+    const c2 = manager.createCampaign('Second', '');
+    manager.setActiveCampaign(c2.id);
+    expect(manager.getBookmarks()).toHaveLength(0);
+    manager.setActiveCampaign(c1.id);
+    expect(manager.getBookmarks()).toHaveLength(1);
+  });
+
+  it('fires onDidChange after adding and deleting a bookmark', () => {
+    const { manager } = makeManager();
+    manager.createCampaign('Camp', '');
+    const spy = jest.fn();
+    manager.onDidChange(spy);
+    const b = manager.addBookmark('file.ts', 0, '');
+    expect(spy).toHaveBeenCalledTimes(1);
+    manager.deleteBookmark(b.id);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('deleteBookmark does nothing when no campaign is active', () => {
+    const { manager } = makeManager();
+    expect(() => manager.deleteBookmark('nonexistent')).not.toThrow();
+  });
+
+  it('covered lines do not appear in getBookmarks — coverage and bookmarks are independent data', () => {
+    const { manager } = makeManager();
+    manager.createCampaign('Camp', '');
+    manager.addBookmark('file.ts', 5, 'marked');
+    manager.markLinesSeen('file.ts', [5]);
+    // Both exist independently — the decoration layer resolves the overlap
+    expect(manager.getBookmarks()).toHaveLength(1);
+    expect(manager.getCoverage()['file.ts']).toContain(5);
+  });
 });
