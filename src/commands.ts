@@ -9,6 +9,7 @@ import { CommentEditorView } from './commentPanel';
 import { DecorationManager } from './decorationManager';
 import { AudishCodeLensProvider } from './codeLensProvider';
 import { countFileLines } from './fileUtils';
+import { validateCampaignName } from './campaignValidation';
 
 function requireActiveCampaign(manager: CampaignManager): boolean {
   if (manager.getActiveCampaignId()) return true;
@@ -65,7 +66,7 @@ export function registerCommands(
       const name = await vscode.window.showInputBox({
         prompt: 'Campaign name',
         placeHolder: 'e.g. Understanding DB Flow',
-        validateInput: v => v.trim() ? null : 'Name is required'
+        validateInput: validateCampaignName
       });
       if (!name) return;
       const desc = await vscode.window.showInputBox({
@@ -103,7 +104,7 @@ export function registerCommands(
       const name = await vscode.window.showInputBox({
         prompt: 'New campaign name',
         value: campaign.name,
-        validateInput: v => v.trim() ? null : 'Name is required'
+        validateInput: validateCampaignName
       });
       if (name) manager.renameCampaign(campaign.id, name.trim());
     }),
