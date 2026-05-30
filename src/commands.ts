@@ -8,6 +8,7 @@ import { CampaignItem, BookmarkItem, CommentItem } from './sidebarProvider';
 import { CommentEditorView } from './commentPanel';
 import { DecorationManager } from './decorationManager';
 import { AudishCodeLensProvider } from './codeLensProvider';
+import { countFileLines } from './fileUtils';
 
 function requireActiveCampaign(manager: CampaignManager): boolean {
   if (manager.getActiveCampaignId()) return true;
@@ -280,7 +281,7 @@ export function registerCommands(
           let total = 0;
           try {
             const content = fs.readFileSync(storage.toAbsolutePath(file), 'utf-8');
-            total = content.split('\n').length;
+            total = countFileLines(content);
           } catch { /* file may not exist */ }
           const pct = total > 0 ? ` (${Math.round(lines.length / total * 100)}%)` : '';
           return { label: file, description: `${lines.length}${total > 0 ? ` / ${total}` : ''} lines${pct}`, file };
